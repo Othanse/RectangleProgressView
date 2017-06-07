@@ -1,48 +1,69 @@
 package demo.chat.yingshe.com.customrectangleprogressview;
 
-import android.graphics.Color;
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.Button;
 
 public class MainActivity extends AppCompatActivity {
 
+    private RectangleProgressView2 rpvRectangleProgressView;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        final RectangleProgressView rpvRectangleProgressView = (RectangleProgressView) findViewById(R.id.rpv);
-        Button btnButton = (Button) findViewById(R.id.btn);
+        rpvRectangleProgressView = (RectangleProgressView2) findViewById(R.id.rpv);
+        Button start = (Button) findViewById(R.id.start);
+        Button pause = (Button) findViewById(R.id.pause);
+        Button stop = (Button) findViewById(R.id.stop);
 
-        btnButton.setOnClickListener(new View.OnClickListener() {
+
+        start.setOnClickListener(onClickListener);
+        pause.setOnClickListener(onClickListener);
+        stop.setOnClickListener(onClickListener);
+
+        rpvRectangleProgressView.setProgressListener(new RectangleProgressView2.progressListener() {
             @Override
-            public void onClick(View v) {
-                rpvRectangleProgressView.setProgressListener(new RectangleProgressView.progressListener() {
-                    @Override
-                    public void over() {
-                        System.out.println("    倒计时结束~");
-                    }
+            public void over() {
+                System.out.println("    倒计时结束~");
+            }
 
-                    @Override
-                    public void start() {
-                        System.out.println("    倒计时开始~~");
-                    }
+            @Override
+            public void start() {
+                System.out.println("    倒计时开始~~");
+            }
 
-                    @Override
-                    public void progress(int total, float progress) {
-                        System.out.println("  进度：" + progress);
+            @Override
+            public void progress(int total, float progress) {
+                System.out.println("  进度：" + progress);
 
-                        if (progress > 15) {
-                            rpvRectangleProgressView.setColor(Color.RED);
-                        }
-                    }
-                });
-
-                rpvRectangleProgressView.start(20);
+//                        if (progress > 15) {
+//                            rpvRectangleProgressView.setColor(Color.RED);
+//                        }
             }
         });
 
 
     }
+
+
+    View.OnClickListener onClickListener = new View.OnClickListener() {
+        @Override
+        public void onClick(View v) {
+            switch (v.getId()) {
+                case R.id.start:
+                    rpvRectangleProgressView.start(10);
+                    break;
+                case R.id.pause:
+                    rpvRectangleProgressView.pause();
+                    break;
+                case R.id.stop:
+                    rpvRectangleProgressView.stop();
+                    break;
+            }
+
+        }
+    };
+
 }
