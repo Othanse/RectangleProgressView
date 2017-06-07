@@ -120,7 +120,8 @@ public class RectangleProgressView2 extends View {
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
-        System.out.println("  想看下 会不会一直在画呢？");
+
+        System.out.println("  想看下 会不会一直在画呢？ currentValue：" + currentValue);
         // 绘制第二层
         int sc = canvas.saveLayer(rectF.left, rectF.top, rectF.right, rectF.bottom, null,
                 Canvas.MATRIX_SAVE_FLAG | Canvas.CLIP_SAVE_FLAG
@@ -138,6 +139,10 @@ public class RectangleProgressView2 extends View {
 //        paint.setXfermode(xfermode);
         paint.setStyle(Paint.Style.FILL);
         paint.setColor(color);
+        if (stop && currentValue != 0) {
+            // 不是清空状态的时候，在停止状态下不允许更新UI
+            return;
+        }
         if (currentLocation >= totalCount) {
             // 最后一点点了。绘制扇形
             canvas.drawArc(rectF2, startAngle, 0, true, paint);
@@ -167,22 +172,20 @@ public class RectangleProgressView2 extends View {
             running = false;
             return;
         }
-        // 当前秒
-        int i1 = currentLocation * updateTime / 1000;
-        if (currentSecond != i1) {
-            currentSecond = i1;
-            listener.progress(duration, i1);
-        }
+
         if (currentLocation >= totalCount) {
             System.out.println("  这是在结束的时候的哈 currentLocation：" + currentLocation + "  totalCount：" + totalCount);
-            currentValue = 0;
-            stop = true;
-            running = false;
-            currentLocation = 0;
             if (listener != null) {
                 listener.over();
             }
             return;
+        } else {
+            // 当前秒
+            int i1 = currentLocation * updateTime / 1000;
+            if (currentSecond != i1) {
+                currentSecond = i1;
+                listener.progress(duration, i1);
+            }
         }
         currentLocation++;
         getHandler().postDelayed(invalideteRunnable, updateTime);
@@ -306,10 +309,17 @@ public class RectangleProgressView2 extends View {
      */
     public void stop() {
         System.out.println("  停止倒计时");
+        currentValue = 0;
+        stop = true;
+        running = false;
+        currentLocation = 0;
         getHandler().removeCallbacksAndMessages(null);
-        currentLocation = totalCount;
         postInvalidate();
-//        getHandler().removeCallbacksAndMessages(null);
+    }
+
+    public void refreshState() {
+        currentLocation = 0;
+        currentValue = 0;
     }
 
     /**

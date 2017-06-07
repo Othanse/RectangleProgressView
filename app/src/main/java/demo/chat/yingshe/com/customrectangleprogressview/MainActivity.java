@@ -38,12 +38,12 @@ public class MainActivity extends AppCompatActivity {
             public void progress(int total, float progress) {
                 System.out.println("  进度：" + progress);
 
-//                if (progress > 15) {
-//                    System.out.println("  倒计时 到了15了 重新开始计时20秒");
-//                    rpvRectangleProgressView.stop();
-//                    rpvRectangleProgressView.start(20);
-//                            rpvRectangleProgressView.setColor(Color.RED);
-//                }
+                if (progress > 15) {
+                    System.out.println("  倒计时 到了15了 重新开始计时20秒");
+                    rpvRectangleProgressView.stop();
+                    rpvRectangleProgressView.start(20);
+//                    rpvRectangleProgressView.setColor(Color.RED);
+                }
             }
         });
 
