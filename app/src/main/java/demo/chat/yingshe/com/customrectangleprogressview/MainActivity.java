@@ -7,13 +7,13 @@ import android.widget.Button;
 
 public class MainActivity extends AppCompatActivity {
 
-    private RectangleProgressView2 rpvRectangleProgressView;
+    private RectangleProgressView rpvRectangleProgressView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        rpvRectangleProgressView = (RectangleProgressView2) findViewById(R.id.rpv);
+        rpvRectangleProgressView = (RectangleProgressView) findViewById(R.id.rpv);
         Button start = (Button) findViewById(R.id.start);
         Button pause = (Button) findViewById(R.id.pause);
         Button stop = (Button) findViewById(R.id.stop);
@@ -23,7 +23,7 @@ public class MainActivity extends AppCompatActivity {
         pause.setOnClickListener(onClickListener);
         stop.setOnClickListener(onClickListener);
 
-        rpvRectangleProgressView.setProgressListener(new RectangleProgressView2.progressListener() {
+        rpvRectangleProgressView.setProgressListener(new RectangleProgressView.progressListener() {
             @Override
             public void over() {
                 System.out.println("    倒计时结束~");

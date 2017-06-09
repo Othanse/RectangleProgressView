@@ -12,7 +12,7 @@
         android:layout_height="match_parent"
         android:background="@color/colorAccent" />
 
-    <demo.chat.yingshe.com.customrectangleprogressview.RectangleProgressView2
+    <demo.chat.yingshe.com.customrectangleprogressview.RectangleProgressView
         android:id="@+id/rpv"
         android:layout_width="150dp"
         android:layout_height="200dp"

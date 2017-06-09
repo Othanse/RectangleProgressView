@@ -7,9 +7,10 @@ import android.graphics.Paint;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
 import android.graphics.RectF;
-import android.os.SystemClock;
+import android.os.Handler;
 import android.util.AttributeSet;
 import android.view.View;
+
 
 /**
  * Created by 菜鹰帅帅 on 2016/11/30.
@@ -21,13 +22,18 @@ public class RectangleProgressView extends View {
     // 矩形厚度
     private float thickness = 30;
     // 矩形颜色
-    private int color = Color.parseColor("#50B5EB");    // 随时设置随时变化
+//    private int color = Color.WHITE;    // 随时设置随时变化
+//    private int bgColor = Color.parseColor("#00d478");    // 随时设置随时变化
+    private int color = Color.parseColor("#00d478");    // 随时设置随时变化
+    private int bgColor = Color.WHITE;    // 随时设置随时变化
     // 矩形进度
     private float currentValue = 0;    // 随时设置随时变化
     // 起始角度
-    private int startAngle = -90; // 默认是正北方向 -90度
-    // 更新UI周期（默认40ms） 可以自行设置 越小 更新频率越快！越大 可能就会造成卡顿 因为更新频率低
+    private float startAngle = -90; // 默认是正北方向 -90度(如果需要在左上角或者右上角，需要根据边长计算角度，然后设置)
+    // 更新UI周期（默认40ms）
     int updateTime = 30;
+
+    int currentLocation = 0;    // 当前位置
     // 倒计时总时长 单位 s 秒
     private int duration = 60;
     private Paint paint;    // 画笔
@@ -36,8 +42,12 @@ public class RectangleProgressView extends View {
     private RectF rectF2;   // 覆盖方框 擦除方框的位置
     private progressListener listener;  // 进度变化监听器
     private boolean running = false;    // 是否正在运行的标记
-    private boolean stop;   // 是否停止
+    private boolean stop = true;   // 是否停止
     private int currentSecond;  // 当前秒
+    private boolean isDestroy;  // 是否销毁
+    private int totalCount;
+    private float everyAngle;
+    private Handler handler;
 
     public interface progressListener {
         /**
@@ -80,8 +90,13 @@ public class RectangleProgressView extends View {
     }
 
     private void initData() {
+        handler = new Handler();
         paint = new Paint();
-        xfermode = new PorterDuffXfermode(PorterDuff.Mode.DST_OUT);
+        xfermode = new PorterDuffXfermode(PorterDuff.Mode.SRC_ATOP);
+//        xfermode = new PorterDuffXfermode(PorterDuff.Mode.DST_OUT);
+//        xfermode = new PorterDuffXfermode(PorterDuff.Mode.DST_IN);
+//        xfermode = new PorterDuffXfermode(PorterDuff.Mode.SRC_OUT);
+//        xfermode = new PorterDuffXfermode(PorterDuff.Mode.SRC_IN);
         rectF = new RectF();
         rectF2 = new RectF();
     }
@@ -95,11 +110,21 @@ public class RectangleProgressView extends View {
         int bottom = getMeasuredHeight() - getPaddingBottom();
         rectF.set(left, top, right, bottom);
         rectF2.set(-200, -200, getMeasuredWidth() + 200, getMeasuredHeight() + 200);
+        int measuredWidth = getMeasuredWidth();
+        int measuredHeight = getMeasuredHeight();
+//        startAngle = -90;
+        float a = ((float) (measuredWidth + 200) / 2) / ((float) (measuredHeight + 200) / 2);
+        float atan = (float) Math.atan(a);
+        float degrees = (float) Math.toDegrees(atan);
+        startAngle = -90 - degrees;
+//        if (LogUtil.isLog()) LogUtil.s("  获取到的角度：" + atan + "  measuredWidth：" + measuredWidth + "   measuredHeight:" + measuredHeight + "  a：" + a + "   degrees:" + degrees);
+//        if (LogUtil.isLog()) LogUtil.s("  最终获取到的角度：" + startAngle);
     }
 
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
+
         // 绘制第二层
         int sc = canvas.saveLayer(rectF.left, rectF.top, rectF.right, rectF.bottom, null,
                 Canvas.MATRIX_SAVE_FLAG | Canvas.CLIP_SAVE_FLAG
@@ -108,7 +133,7 @@ public class RectangleProgressView extends View {
                         | Canvas.CLIP_TO_LAYER_SAVE_FLAG);
         // 绘制矩形框
         paint.setAntiAlias(true);
-        paint.setColor(color);
+        paint.setColor(bgColor);
         paint.setXfermode(null);
         paint.setStyle(Paint.Style.STROKE);
         paint.setStrokeWidth(thickness);
@@ -116,10 +141,59 @@ public class RectangleProgressView extends View {
         // 设置遮挡属性
         paint.setXfermode(xfermode);
         paint.setStyle(Paint.Style.FILL);
-        // 绘制扇形
-        canvas.drawArc(rectF2, startAngle, currentValue, true, paint);
+        paint.setColor(color);
+        if (stop && currentValue != 0) {
+            // 不是清空状态的时候，在停止状态下不允许更新UI
+            return;
+        }
+        if (currentLocation >= totalCount) {
+            // 最后一点点了。绘制扇形
+            canvas.drawArc(rectF2, startAngle, 0, true, paint);
+        } else {
+            // 绘制扇形
+            canvas.drawArc(rectF2, startAngle, currentValue, true, paint);
+        }
         // 将第二层反馈给画布
         canvas.restoreToCount(sc);
+
+//        ==========================================================
+        if (currentLocation >= totalCount) {
+            currentValue = 0;
+        } else {
+            currentValue = 360 - ((float) currentLocation * everyAngle);
+        }
+
+        if (isDestroy) {
+            return;
+        }
+
+        if (listener == null) {
+//            runnable = null;
+            return;
+        }
+        if (stop) {
+            running = false;
+            return;
+        }
+
+        if (currentLocation >= totalCount) {
+            if (listener != null) {
+                listener.over();
+            }
+            return;
+        } else {
+            // 当前秒
+            int i1 = currentLocation * updateTime / 1000;
+            if (currentSecond != i1) {
+                currentSecond = i1;
+                listener.progress(duration, i1);
+            }
+        }
+        currentLocation++;
+        if (handler != null) {
+            handler.postDelayed(invalideteRunnable, updateTime);
+        }
+//        =======================================================
     }
 
     /**
@@ -127,6 +201,7 @@ public class RectangleProgressView extends View {
      *
      * @param color 颜色色值
      */
+
     public void setColor(int color) {
         this.color = color;
     }
@@ -148,7 +223,7 @@ public class RectangleProgressView extends View {
         this.thickness = thickness;
     }
 
-    public int getStartAngle() {
+    public float getStartAngle() {
         return startAngle;
     }
 
@@ -188,85 +263,58 @@ public class RectangleProgressView extends View {
         this.listener = listener;
     }
 
+
     /**
      * 设置秒数，开始倒计时(不可重复设置)
      *
      * @param time 倒计时秒数
      */
     public void start(final int time) {
-
+//        if (LogUtil.isLog()) LogUtil.s("  收到了开始倒计时的调用：" + time);
         duration = time;
         if (duration <= 0) {
             return;
         }
-
-//        ThreadPoolUtil.execute(runnable); // 线程池方式运行
-        new Thread(runnable).start();   // 每次都是新建线程！考虑这个线程可能持续相当长的时间 就不占用线程池的线程了！
-
+        // 如果40ms更新一次 计算一共需要更新多少次
+        totalCount = (duration * 1000) / updateTime;
+//        if (LogUtil.isLog())
+//            LogUtil.s(" 准备开始倒计时~  duration：" + duration + "  updateTime:" + updateTime + "  total:" + totalCount);
+        if (totalCount <= 0) {
+            return;
+        }
+        if (listener != null) {
+            listener.start();
+        }
+        // 每次更新多少度
+        everyAngle = (360 / (float) totalCount);
+        stop = false;
+        postInvalidate();
     }
 
-    private Runnable runnable = new Runnable() {
+    private Runnable invalideteRunnable = new Runnable() {
         @Override
         public void run() {
-            SystemClock.sleep(updateTime);  // 睡眠更新频率的时间，避免出现多个线程共同运行的情况！
-
-            if (running) {
-                // 如果正在运行，则不可再次运行
-                return;
-            }
-            stop = false;
-            running = true;
-
-            // 如果40ms更新一次 计算一共需要更新多少次
-            int totalCount = (duration * 1000) / updateTime;
-            if (totalCount <= 0) {
-                return;
-            }
-            if (listener != null) {
-                listener.start();
-            }
-
-            // 恢复状态
-            currentValue = 0;
-
-
-            // 每次更新多少度
-            float everyAngle = (360 / (float) totalCount);
-            for (int i = 0; i <= totalCount; i++) {
-                if (stop) {
-                    running = false;
-                    return;
-                }
-                currentValue = ((float) i * everyAngle);
-                postInvalidate();
-                SystemClock.sleep(updateTime);
-                if (stop) {
-                    running = false;
-                    return;
-                }
-                // 当前秒
-                int i1 = i * updateTime / 1000;
-                if (listener != null && currentSecond != i1) {
-                    currentSecond = i1;
-                    listener.progress(duration, i1);
-                }
-            }
-            running = false;
-            if (listener != null) {
-                listener.over();
-            }
+            invalidate();
         }
     };
-
 
     /**
      * 停止更新（不会回调over）
      */
     public void stop() {
+        currentValue = 0;
         stop = true;
         running = false;
-        currentValue = 0;
+        currentLocation = 0;
+        if (handler != null) {
+            handler.removeCallbacksAndMessages(null);
+        }
         postInvalidate();
+    }
+
+    public void refreshState() {
+        currentLocation = 0;
+        currentValue = 0;
     }
 
     /**
@@ -274,5 +322,20 @@ public class RectangleProgressView extends View {
      */
     public void pause() {
         stop = true;
+        running = false;
+        if (handler != null) {
+            handler.removeCallbacksAndMessages(null);
+        }
+    }
+
+    public void destroy() {
+        isDestroy = true;
+        if (listener != null) {
+            listener = null;
+        }
+        if (handler != null) {
+            handler.removeCallbacksAndMessages(null);
+            handler = null;
+        }
     }
 }
